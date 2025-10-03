@@ -1,0 +1,48 @@
+# Build outputs
+build/
+dist/
+*.js.map
+
+# Dependencies
+node_modules/
+
+# Test outputs and artifacts
+test-results/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!claude-config-example.json
+
+# Environment files
+.env
+.env.local
+.env.test
+.vscode/mcp.json
+
+# IDE
+.vscode/*
+!.vscode/mcp.json.example
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# History and cache
+.history/
+.lh/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp

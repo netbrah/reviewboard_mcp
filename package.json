@@ -1,0 +1,52 @@
+{
+  "name": "reviewboard-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for ReviewBoard API integration with comprehensive code review analysis capabilities",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "reviewboard-mcp-server": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x build/index.js && chmod +x scripts/*.sh",
+    "dev": "tsc --watch",
+    "start": "node build/index.js",
+    "clean": "rm -rf build",
+    "prepare": "npm run build",
+    "test": "npm run build && ./scripts/run-tests.sh",
+    "test:quick": "./scripts/run-tests.sh",
+    "test:patch-diffs": "npm run build && ./scripts/run-test.sh test/test-patch-diffs.js",
+    "test:revision": "npm run build && ./scripts/run-test.sh test/test-revision-tools.js",
+    "test:comments": "npm run build && ./scripts/run-test.sh test/test-comment-resolution.js",
+    "test:all": "npm run build && ./scripts/run-test.sh test/test-patch-diffs.js && ./scripts/run-test.sh test/test-revision-tools.js && ./scripts/run-test.sh test/test-comment-resolution.js"
+  },
+  "files": [
+    "build"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "reviewboard",
+    "code-review",
+    "api",
+    "revision-tracking",
+    "comment-analysis",
+    "diff-analysis"
+  ],
+  "author": "palanisd",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.6.0",
+    "xml2js": "^0.6.2",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/xml2js": "^0.4.14",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
