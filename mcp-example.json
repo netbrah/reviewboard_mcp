@@ -1,0 +1,25 @@
+{
+  "servers": {
+    "reviewboard": {
+      "command": "node",
+      "args": ["path/to/reviewboard_mcp/build/index.js"],
+      "env": {
+        "REVIEWBOARD_BASE_URL": "${input:reviewboard_base_url}",
+        "REVIEWBOARD_API_TOKEN": "${input:reviewboard_api_token}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "reviewboard_base_url",
+      "type": "promptString",
+      "description": "ReviewBoard Base URL"
+    },
+    {
+      "id": "reviewboard_api_token",
+      "type": "promptString",
+      "description": "ReviewBoard API Token",
+      "password": true
+    }
+  ]
+}

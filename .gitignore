@@ -13,6 +13,7 @@ test-results/
 !package-lock.json
 !tsconfig.json
 !claude-config-example.json
+!mcp-example.json
 
 # Environment files
 .env
@@ -46,3 +47,11 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
+reviewboard.xml
+
+# Summary documents (keep local)
+CLEANUP_SUMMARY.md
+PROJECT_STATUS.md
+REORGANIZATION_SUMMARY.md
+TESTING.md
+TEST_RESULTS.md
