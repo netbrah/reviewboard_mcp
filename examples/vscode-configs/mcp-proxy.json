@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "reviewboard": {
+      "url": "https://llm-proxy-api.ai.eng.netapp.com/mcp/reviewboard_netapp",
+      "transport": "sse",
+      "headers": {
+        "x-litellm-api-key": "${input:llm_api_key}",
+        "x-mcp-reviewboard-authorization": "Bearer ${input:reviewboard_api_token}",
+        "x-reviewboard-url": "${input:reviewboard_base_url}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "llm_api_key",
+      "type": "promptString",
+      "description": "LLM Proxy API Key (format: Bearer user=username&key=sk-...)",
+      "password": true
+    },
+    {
+      "id": "reviewboard_api_token",
+      "type": "promptString",
+      "description": "ReviewBoard API Token (e.g., rbp_...)",
+      "password": true
+    },
+    {
+      "id": "reviewboard_base_url",
+      "type": "promptString",
+      "description": "ReviewBoard Base URL",
+      "default": "https://reviewboard.netapp.com"
+    }
+  ]
+}

@@ -7,6 +7,42 @@ Welcome to the ReviewBoard MCP Server documentation! This guide will help you na
 ### 🚀 Getting Started
 - **[../README.md](../README.md)** - Main project overview, installation, and quick start guide
 
+### 🔐 Authentication & Deployment
+
+**NEW!** Comprehensive guides for production deployment:
+
+- **[LLM-PROXY-AUTHENTICATION.md](./LLM-PROXY-AUTHENTICATION.md)** ⭐ **NEW!** - Complete authentication guide
+  - Direct connection vs LLM proxy
+  - Header structure and transformation
+  - VS Code configuration for both modes
+  - Credential management and security
+
+- **[AIRLOCK-TESTING.md](./AIRLOCK-TESTING.md)** ⭐ **NEW!** - Docker testing in airlock
+  - Step-by-step Docker testing guide
+  - VS Code configuration for Docker
+  - Troubleshooting common issues
+
+- **[DEPLOYMENT-WORKFLOW.md](./DEPLOYMENT-WORKFLOW.md)** ⭐ **NEW!** - Complete deployment workflow
+  - End-to-end deployment process
+  - CI/CD integration
+  - Manual LiteLLM registration steps
+  - Rollback procedures
+
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production deployment guide
+  - Kubernetes, Docker Compose, VM deployment
+  - Infrastructure setup
+  - Monitoring and scaling
+
+- **[MANUAL-LITELLM-REGISTRATION.md](./MANUAL-LITELLM-REGISTRATION.md)** - LiteLLM registration
+  - Manual registration process
+  - Verification steps
+  - Troubleshooting registration issues
+
+- **[../examples/vscode-configs/](../examples/vscode-configs/)** ⭐ **NEW!** - VS Code config examples
+  - `mcp-direct.json` - stdio mode (local development)
+  - `mcp-proxy.json` - LLM proxy (production)
+  - `mcp-docker-local.json` - Docker testing (airlock)
+
 ### 📚 Core Documentation
 
 #### Tool References

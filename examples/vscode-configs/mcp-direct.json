@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "reviewboard": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/reviewboard_mcp/build/index.js"
+      ],
+      "env": {
+        "REVIEWBOARD_BASE_URL": "${input:reviewboard_base_url}",
+        "REVIEWBOARD_API_TOKEN": "${input:reviewboard_api_token}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "reviewboard_base_url",
+      "type": "promptString",
+      "description": "ReviewBoard Base URL (e.g., https://reviewboard.netapp.com)"
+    },
+    {
+      "id": "reviewboard_api_token",
+      "type": "promptString",
+      "description": "ReviewBoard API Token",
+      "password": true
+    }
+  ]
+}
