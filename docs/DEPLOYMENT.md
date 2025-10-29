@@ -4,12 +4,18 @@
 
 This guide covers deploying the ReviewBoard MCP Server as a web service with HTTP streaming (SSE) transport.
 
+## ⚠️ IMPORTANT: Manual LiteLLM Registration Required
+
+**LiteLLM proxy registration MUST be done manually** after deployment. GitHub Actions and automated CI/CD pipelines do not have access to the LiteLLM proxy API.
+
+➡️ **See [MANUAL-LITELLM-REGISTRATION.md](./MANUAL-LITELLM-REGISTRATION.md) for complete registration instructions.**
+
 ## Prerequisites
 
 - Docker or Node.js 20+
 - Access to deploy on your infrastructure (e.g., Kubernetes, Cloud Run, VM)
-- LiteLLM proxy access for registration
-- ReviewBoard API access
+- **LiteLLM API key** (for manual registration after deployment)
+- ReviewBoard API access (for testing)
 
 ## Quick Start (Docker)
 

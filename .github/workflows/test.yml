@@ -123,12 +123,10 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  # Integration Tests - Docker only (no LiteLLM access)
   test-integration:
-    name: Integration Tests
+    name: Docker Integration Tests
     runs-on: ubuntu-latest
-    
-    # Only run if LiteLLM credentials are configured
-    if: vars.LITELLM_API_URL != ''
     
     steps:
       - name: Checkout code
@@ -157,27 +155,28 @@ jobs:
       - name: Test container health
         run: |
           curl -f http://localhost:3000/health
+          curl -f http://localhost:3000/ | jq .
       
-      - name: Test LiteLLM registration (dry-run)
-        env:
-          LITELLM_API_KEY: ${{ secrets.LITELLM_API_KEY }}
-          LITELLM_API_URL: ${{ vars.LITELLM_API_URL }}
+      - name: Display registration payload (for manual use)
         run: |
-          # Prepare registration payload
           cat > registration.json <<EOF
           {
-            "server_name": "reviewboard_test_${GITHUB_RUN_ID}",
-            "alias": "rb-test",
-            "description": "Test registration from CI",
+            "server_name": "reviewboard_netapp",
+            "alias": "reviewboard",
+            "description": "NetApp ReviewBoard MCP server",
             "transport": "sse",
             "auth_type": "bearer_token",
-            "url": "http://localhost:3000/mcp/",
-            "mcp_access_groups": ["test"],
+            "url": "https://mcp-reviewboard.ai.eng.netapp.com/mcp/",
+            "mcp_access_groups": ["reviewboard", "engineering"],
             "extra_headers": ["X-ReviewBoard-URL"]
           }
           EOF
           
-          # Display what would be registered (without actually registering)
+          echo "LiteLLM registration payload (for manual registration):"
+          cat registration.json | jq .
+          echo ""
+          echo "NOTE: LiteLLM registration must be done manually."
+          echo "See docs/DEPLOYMENT.md for instructions."
           echo "Would register with LiteLLM:"
           cat registration.json | jq .
       

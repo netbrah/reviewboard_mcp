@@ -2,11 +2,15 @@
 
 This document explains how to configure GitHub secrets and variables for the ReviewBoard MCP Server CI/CD pipeline.
 
-## Required Secrets
+## ⚠️ Important Note
 
-### 1. REVIEWBOARD_API_TOKEN
+**LiteLLM API keys are NOT used in CI/CD** - GitHub Actions does not have access to the LiteLLM proxy API. Registration with LiteLLM must be done manually after deployment. See [MANUAL-LITELLM-REGISTRATION.md](./MANUAL-LITELLM-REGISTRATION.md).
 
-**Description:** ReviewBoard API token for authentication during testing and deployment.
+## Required Secrets for CI/CD
+
+### 1. REVIEWBOARD_API_TOKEN ✅ REQUIRED
+
+**Description:** ReviewBoard API token for authentication during testing.
 
 **How to obtain:**
 1. Log in to your ReviewBoard instance
@@ -27,14 +31,14 @@ gh secret set REVIEWBOARD_API_TOKEN -b "your-token-here"
 
 **Usage:**
 - Running tests in CI/CD
-- Testing HTTP server functionality
+- Testing HTTP server functionality  
 - Validating API connectivity
 
-**Scope:** Repository secret (can be made into environment secret for staging/production separation)
+**Scope:** Repository secret
 
 ---
 
-### 2. REVIEWBOARD_BASE_URL
+### 2. REVIEWBOARD_BASE_URL ✅ REQUIRED
 
 **Description:** Base URL of your ReviewBoard instance.
 
@@ -58,26 +62,25 @@ gh secret set REVIEWBOARD_BASE_URL -b "https://reviewboard.netapp.com"
 
 ---
 
-### 3. LITELLM_API_KEY (Production)
+## Optional Secrets
 
-**Description:** LiteLLM proxy API key for production server registration.
+### 3. LITELLM_API_KEY ⚠️ FOR MANUAL USE ONLY
+
+**Description:** LiteLLM proxy API key for server registration.
+
+**⚠️ NOT USED IN CI/CD** - This is only needed for manual registration after deployment.
 
 **How to obtain:**
 1. Contact your LiteLLM proxy administrator
 2. Request an API key for MCP server registration
 3. Key should have permissions for `/v1/mcp/server` endpoints
 
-**How to configure:**
-```bash
-# Production environment secret
-gh secret set LITELLM_API_KEY_PRODUCTION --env production
-
-# Or for repository-level:
-gh secret set LITELLM_API_KEY
-```
-
 **Usage:**
-- Registering MCP server with LiteLLM proxy
+- **Manual registration only** - see [MANUAL-LITELLM-REGISTRATION.md](./MANUAL-LITELLM-REGISTRATION.md)
+- Not used in GitHub Actions workflows
+- Keep this key secure on your local machine or in a password manager
+
+**DO NOT** configure this in GitHub Secrets - it won't be used.
 - Updating server configuration
 - Automated deployment workflows
 
