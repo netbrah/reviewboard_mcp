@@ -1,19 +1,14 @@
 # ReviewBoard MCP Server - HTTP Streaming
-FROM node:20-alpine
+# Copy pre-built artifacts and node_modules from host
 
-# Set working directory
+FROM node:20-slim
+
 WORKDIR /app
 
-# Install dependencies first (for better caching)
+# Copy everything needed
 COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy source code
-COPY tsconfig.json ./
-COPY src ./src
-
-# Build TypeScript
-RUN npm run build
+COPY build ./build
+COPY node_modules ./node_modules
 
 # Expose port
 EXPOSE 3000

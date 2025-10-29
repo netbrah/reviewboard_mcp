@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     
     # Only run if ReviewBoard credentials are configured
-    if: vars.REVIEWBOARD_BASE_URL != ''
+    if: secrets.REVIEWBOARD_API_TOKEN != ''
     
     steps:
       - name: Checkout code
@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     
     # Only run if ReviewBoard credentials are configured
-    if: vars.REVIEWBOARD_BASE_URL != ''
+    if: secrets.REVIEWBOARD_API_TOKEN != ''
     
     services:
       reviewboard-mcp:

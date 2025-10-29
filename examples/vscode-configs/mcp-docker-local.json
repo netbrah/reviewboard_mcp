@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "reviewboard-docker": {
+      "url": "http://localhost:3000/mcp",
+      "transport": "sse",
+      "headers": {
+        "Authorization": "Bearer ${input:reviewboard_api_token}",
+        "X-ReviewBoard-URL": "${input:reviewboard_base_url}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "reviewboard_api_token",
+      "type": "promptString",
+      "description": "ReviewBoard API Token",
+      "password": true
+    },
+    {
+      "id": "reviewboard_base_url",
+      "type": "promptString",
+      "description": "ReviewBoard Base URL",
+      "default": "https://reviewboard.netapp.com"
+    }
+  ]
+}
