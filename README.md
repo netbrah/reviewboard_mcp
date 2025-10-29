@@ -39,9 +39,30 @@ npm install
 npm run build
 ```
 
+## 🚀 Two Modes of Operation
+
+This MCP server supports **two deployment modes**:
+
+### 1. **stdio Mode** (Local Development)
+- Runs as a local process communicating via stdin/stdout
+- Perfect for local development with VS Code or Claude Desktop
+- One process per client
+- Configuration via environment variables or VS Code prompts
+
+### 2. **HTTP Streaming Mode** (Production Deployment)
+- Runs as a web service with HTTP + Server-Sent Events (SSE)
+- Scalable deployment (Kubernetes, Docker, etc.)
+- Multiple concurrent clients
+- Integration with LiteLLM proxy
+- Per-request authentication
+
+**Choose your mode based on use case:**
+- Local development → Use stdio mode (`npm start`)
+- Production/team deployment → Use HTTP streaming mode (`npm run start:http`)
+
 ## ⚙️ Configuration
 
-### For VS Code (Secure Input Prompts)
+### For stdio Mode (Local Development / VS Code)
 
 The server uses secure input prompts configured in `.vscode/mcp.json`:
 
@@ -75,6 +96,21 @@ The server uses secure input prompts configured in `.vscode/mcp.json`:
 
 VS Code will securely prompt for your credentials when the server starts (API token is masked).
 
+### For HTTP Streaming Mode (Production Deployment)
+
+No environment variables needed! Credentials are provided **per-request** via HTTP headers:
+
+```bash
+# Start the HTTP server
+npm run start:http
+
+# Credentials provided via HTTP headers
+Authorization: Bearer YOUR_REVIEWBOARD_API_TOKEN
+X-ReviewBoard-URL: https://reviewboard.netapp.com
+```
+
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for complete deployment guide.
+
 ### For Testing (Environment Variables)
 
 Copy `.env.test.template` to `.env.test` and fill in your credentials:
@@ -88,6 +124,7 @@ The test scripts automatically source `.env.test` for credentials.
 
 ## 🚀 Quick Start
 
+### stdio Mode (Local Development)
 ```bash
 # Setup testing (one time)
 cp .env.test.template .env.test
@@ -100,7 +137,26 @@ npm test
 npm start
 ```
 
-See [TESTING.md](./TESTING.md) for complete testing guide.
+### HTTP Streaming Mode (Production)
+```bash
+# Build the server
+npm run build
+
+# Start HTTP server
+npm run start:http
+
+# Test health endpoint
+curl http://localhost:3000/health
+
+# Deploy (choose one)
+docker-compose up -d              # Docker Compose
+kubectl apply -f k8s-deployment.yaml  # Kubernetes
+```
+
+See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for complete deployment and registration guide.
+
+See [TESTING.md](./TESTING.md) for stdio testing guide.
+See [docs/TESTING-HTTP.md](./docs/TESTING-HTTP.md) for HTTP testing guide.
 
 ## 📚 Documentation
 
@@ -108,9 +164,13 @@ See [TESTING.md](./TESTING.md) for complete testing guide.
 - 📖 [Documentation Index](./docs/README.md) - Navigate all documentation
 - 🔧 [Project Status](./PROJECT_STATUS.md) - Current capabilities and structure
 - 📦 [Reorganization Summary](./REORGANIZATION_SUMMARY.md) - What changed and why
+- 🌐 **[HTTP Migration Summary](./docs/HTTP-MIGRATION-SUMMARY.md)** ⭐ **NEW!** - Complete guide to HTTP streaming mode
 
 **Detailed Guides:**
-- **[docs/ENHANCEMENTS.md](./docs/ENHANCEMENTS.md)** ⭐ **NEW!** - Detailed guide to new patch diff capabilities
+- **[docs/ENHANCEMENTS.md](./docs/ENHANCEMENTS.md)** ⭐ - Detailed guide to new patch diff capabilities
+- **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** ⭐ **NEW!** - Deploy as web service (Kubernetes, Docker, VM)
+- **[docs/HTTP-STREAMING-MIGRATION.md](./docs/HTTP-STREAMING-MIGRATION.md)** ⭐ **NEW!** - stdio vs HTTP streaming concepts
+- **[docs/TESTING-HTTP.md](./docs/TESTING-HTTP.md)** ⭐ **NEW!** - Testing guide for HTTP mode
 - **[docs/TOOLS.md](./docs/TOOLS.md)** - Complete tool reference with all 17 tools
 - **[docs/NATURAL-LANGUAGE-QUESTIONS.md](./docs/NATURAL-LANGUAGE-QUESTIONS.md)** - 30+ natural language questions you can ask
 - **[docs/QUICK-REFERENCE.md](./docs/QUICK-REFERENCE.md)** - Quick command reference

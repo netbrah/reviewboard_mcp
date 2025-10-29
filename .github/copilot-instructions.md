@@ -1,86 +1,186 @@
-- [x] Verify that the copilot-instructions.md file in the .github directory is created.
+# ReviewBoard MCP Server - AI Agent Instructions
 
-- [x] Clarify Project Requirements
-	Existing TypeScript project detected via package.json; no further clarification needed.
+## Project Overview
+TypeScript-based MCP (Model Context Protocol) server providing natural language interface to ReviewBoard API. Supports **dual deployment modes**: stdio (local) and HTTP streaming (production). Currently on branch `convert-to-http` migrating from stdio-only to HTTP+SSE transport.
 
-- [x] Scaffold the Project
-	Existing workspace already contains the required TypeScript sources; no new scaffolding run.
+## Architecture: Two Parallel Implementations
 
-- [ ] Customize the Project
-	Verify that all previous steps have been completed successfully and you have marked the step as completed.
-	Develop a plan to modify codebase according to user requirements.
-	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
+### stdio Mode (`src/index.ts`) ✅ PRODUCTION
+- Uses `@modelcontextprotocol/sdk` with `StdioServerTransport`
+- Local process per client, reads stdin/writes stdout
+- Config via environment variables or VS Code prompts
+- Tool registration: `server.tool(name, description, schema, handler)`
+- Entry: `npm start` → runs `node build/index.js`
 
-- [ ] Install Required Extensions
-	ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed.
+### HTTP Mode (`src/index-http.ts`) ⚠️ IN DEVELOPMENT
+- Uses Express + `SSEServerTransport` for web service deployment
+- Multi-client via Server-Sent Events (SSE)
+- Authentication via HTTP headers per-request
+- Target: LiteLLM proxy integration (like jira_oss server)
+- Entry: `npm run start:http` → runs `node build/index-http.js`
 
-- [ ] Compile the Project
-	Verify that all previous steps have been completed.
-	Install any missing dependencies.
-	Run diagnostics and resolve any issues.
-	Check for markdown files in project folder for relevant instructions on how to do this.
+**Key Insight**: Both modes share `src/reviewboard-client.ts` - core API integration logic. Modes differ only in transport/auth layers.
 
-- [ ] Create and Run Task
-	Verify that all previous steps have been completed.
-	Check https://code.visualstudio.com/docs/debugtest/tasks to determine if the project needs a task. If so, use the create_and_run_task to create and launch a task based on package.json, README.md, and project structure.
-	Skip this step otherwise.
+## Core Components
 
-- [ ] Launch the Project
-	Verify that all previous steps have been completed.
-	Prompt user for debug mode, launch only if confirmed.
+### ReviewBoardClient (`src/reviewboard-client.ts`)
+- Axios-based HTTP client wrapping ReviewBoard REST API v5.0.6+
+- Handles 3 auth types: API token (Bearer), Basic auth, session cookies
+- **17 public methods** map to MCP tools (e.g., `getReviewRequest()`, `getDiffRevisions()`, `analyzeCommentResolution()`)
+- Returns typed interfaces: `ReviewRequest`, `Review`, `Diff`, etc.
+- XML patch parsing via `xml2js` for unified diffs
 
-- [ ] Ensure Documentation is Complete
-	Verify that all previous steps have been completed.
-	Verify that README.md and the copilot-instructions.md file in the .github directory exists and contains current project information.
-	Clean up the copilot-instructions.md file in the .github directory by removing all HTML comments.
+### Tool Registration Pattern
+All 17 tools follow identical structure:
+```typescript
+server.tool(
+  "tool_name",
+  "Description for AI",
+  { param: z.type().describe("...") },  // Zod schema
+  async (params) => {
+    const client = ensureClient();  // Get initialized client
+    const result = await client.method(params);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  }
+);
+```
 
-## Execution Guidelines
-PROGRESS TRACKING:
-- If any tools are available to manage the above todo list, use it to track progress through this checklist.
-- After completing each step, mark it complete and add a summary.
-- Read current todo list status before starting each new step.
+## Critical Developer Workflows
 
-COMMUNICATION RULES:
-- Avoid verbose explanations or printing full command outputs.
-- If a step is skipped, state that briefly (e.g. "No extensions needed").
-- Do not explain project structure unless asked.
-- Keep explanations concise and focused.
+### Build & Test
+```bash
+npm run build          # TypeScript → build/ (stdio + HTTP)
+npm test               # Runs all test suites via ./scripts/run-tests.sh
+npm run test:revision  # Test specific feature (revision tracking)
+```
 
-DEVELOPMENT RULES:
-- Use '.' as the working directory unless user specifies otherwise.
-- Avoid adding media or external links unless explicitly requested.
-- Use placeholders only with a note that they should be replaced.
-- Use VS Code API tool only for VS Code extension projects.
-- Once the project is created, it is already opened in Visual Studio Code—do not suggest commands to open this project in Visual Studio again.
-- If the project setup information has additional rules, follow them strictly.
+**Test Pattern**: All tests use `.env.test` (copy from `.env.test.template`) for credentials. Test files source this automatically via scripts.
 
-FOLDER CREATION RULES:
-- Always use the current directory as the project root.
-- If you are running any terminal commands, use the '.' argument to ensure that the current working directory is used ALWAYS.
-- Do not create a new folder unless the user explicitly requests it besides a .vscode folder for a tasks.json file.
-- If any of the scaffolding commands mention that the folder name is not correct, let the user know to create a new folder with the correct name and then reopen it again in vscode.
+### Local Development (stdio)
+1. Set `REVIEWBOARD_BASE_URL` and `REVIEWBOARD_API_TOKEN` in environment
+2. `npm start` - server outputs to stderr, MCP protocol to stdout
+3. VS Code connects via `.vscode/mcp.json` (uses `${input:...}` for secure prompts)
 
-EXTENSION INSTALLATION RULES:
-- Only install extension specified by the get_project_setup_info tool. DO NOT INSTALL any other extensions.
+### HTTP Development (current focus)
+1. `npm run dev:http` - build + run HTTP server on port 3000
+2. Test: `curl http://localhost:3000/health`
+3. SSE endpoint: `GET /mcp/sse` (needs `Authorization` + `X-ReviewBoard-URL` headers)
 
-PROJECT CONTENT RULES:
-- If the user has not specified project details, assume they want a "Hello World" project as a starting point.
-- Avoid adding links of any type (URLs, files, folders, etc.) or integrations that are not explicitly required.
-- Avoid generating images, videos, or any other media files unless explicitly requested.
-- If you need to use any media assets as placeholders, let the user know that these are placeholders and should be replaced with the actual assets later.
-- Ensure all generated components serve a clear purpose within the user's requested workflow.
-- If a feature is assumed but not confirmed, prompt the user for clarification before including it.
-- If you are working on a VS Code extension, use the VS Code API tool with a query to find relevant VS Code API references and samples related to that query.
+## Project-Specific Conventions
 
-TASK COMPLETION RULES:
-- Your task is complete when:
-  - Project is successfully scaffolded and compiled without errors
-  - copilot-instructions.md file in the .github directory exists in the project
-  - README.md file exists and is up to date
-  - User is provided with clear instructions to debug/launch the project
+### Tool Naming & Organization
+Tools organized by capability (see `docs/TOOLS.md` for full list):
+- **Discovery**: `get_review_requests`, `search`
+- **Diffs**: `get_full_diff_patch`, `get_diff_revisions`
+- **Comments**: `get_comprehensive_comments_analysis`, `analyze_comment_resolution`
+- **Revisions**: `compare_revisions`, `get_file_revision_history`
 
-Before starting a new task in the above plan, update progress in the plan.
-- Work through each checklist item systematically.
-- Keep communication concise and focused.
-- Follow development best practices.
+**Critical**: Tool names use snake_case (MCP convention), but TypeScript uses camelCase. Client methods map 1:1 to tools.
+
+### Error Handling Pattern
+Tools catch errors and return formatted error text (not throw):
+```typescript
+catch (error) {
+  return {
+    content: [{ type: "text", text: `Error: ${error.message}` }]
+  };
+}
+```
+Ensures graceful degradation - AI sees error as tool output.
+
+### Natural Language Support
+Tools designed for conversational queries (see `docs/NATURAL-LANGUAGE-QUESTIONS.md`):
+- "Show me review 858846" → `get_review_request`
+- "What changed between revisions 5 and 6?" → `compare_revisions` or `get_diff_revisions(includePatchDiffs: true)`
+- "Were comments addressed?" → `analyze_comment_resolution`
+
+## Integration Points
+
+### External Dependencies
+- **ReviewBoard API**: REST API at `${REVIEWBOARD_BASE_URL}/api/` (v5.0.6+)
+  - Auth: `Authorization: token <api_token>` or Basic auth
+  - Rate limiting: Handle 429 responses (not currently implemented)
+- **MCP SDK**: `@modelcontextprotocol/sdk@^1.0.0` - protocol implementation
+- **LiteLLM Proxy** (HTTP mode target): Registry API at `/v1/mcp/server` for server registration
+  - See `docs/LITELLM-MCP-REGISTRY-API.md` for complete API reference from OpenAPI spec
+  - Transport type: `"sse"` (not "http")
+  - Auth type: `"bearer_token"` for ReviewBoard API tokens
+  - Extra headers: `["X-ReviewBoard-URL"]` required for per-request ReviewBoard URL
+
+### Deployment Targets (HTTP mode)
+- Docker: `docker build -t reviewboard-mcp .` (see `Dockerfile`)
+- Kubernetes: `kubectl apply -f k8s-deployment.yaml` (includes Ingress, HPA, PDB)
+- Docker Compose: `docker-compose up -d` (simple single-node)
+
+**Registration with LiteLLM**: After deployment, POST to `/v1/mcp/server` with server URL, transport type, auth type (see `docs/DEPLOYMENT.md` for curl example).
+
+## Data Flows
+
+### stdio Request Flow
+```
+VS Code → stdin → McpServer → server.tool() → ReviewBoardClient → axios → ReviewBoard API
+                                    ↓
+                            stdout ← JSON result
+```
+
+### HTTP Request Flow (target)
+```
+LiteLLM Proxy → SSE connection → Express(/mcp/sse) → McpServer → ReviewBoardClient
+       ↓                                                              ↓
+  User credentials                                            ReviewBoard API
+  (HTTP headers)                                                     ↓
+       ↓                                                      SSE stream ← JSON
+  Tool execution
+```
+
+**Key Difference**: HTTP mode must extract credentials from request headers (per-session), not environment.
+
+## Current Branch: convert-to-http
+
+### What's Done
+- ✅ HTTP infrastructure (Express, CORS, Helmet)
+- ✅ Deployment configs (Docker, K8s, Compose)
+- ✅ Documentation (5 new docs in `docs/`)
+- ✅ Dependencies installed
+
+### What's Needed
+- ⚠️ `src/index-http.ts` MCP SDK API corrections
+  - `SSEServerTransport` initialization needs review
+  - Session management for per-client ReviewBoardClient instances
+  - All 17 tools need copying from stdio version
+- Test HTTP server locally before deployment
+- Deploy and register with LiteLLM proxy
+
+### Key Files for HTTP Work
+- `src/index-http.ts` - HTTP server implementation (incomplete)
+- `docs/HTTP-MIGRATION-SUMMARY.md` - Architecture comparison
+- `HTTP-CONVERSION-STATUS.md` - Current status and next steps
+- Reference `jira_oss` implementation patterns (similar architecture)
+
+## Documentation Structure
+- `README.md` - User-facing overview (dual-mode operation)
+- `docs/TOOLS.md` - All 17 tools with schemas and examples
+- `docs/ENHANCEMENTS.md` - Revision tracking feature details
+- `docs/DEPLOYMENT.md` - Production deployment guide
+- `docs/LITELLM-MCP-REGISTRY-API.md` - Complete LiteLLM Registry API reference from OpenAPI spec
+- `HTTP-CONVERSION-STATUS.md` - Migration status (AI reference)
+- `test/README.md` - Test suite organization
+
+## Common Tasks
+
+**Add new tool**:
+1. Add method to `ReviewBoardClient`
+2. Register tool in both `index.ts` and `index-http.ts`
+3. Add test in `test/test-*.js`
+4. Update `docs/TOOLS.md`
+
+**Fix HTTP implementation**:
+1. Check MCP SDK docs for `SSEServerTransport` examples
+2. Review stdio version tool registration pattern
+3. Ensure per-request credential extraction works
+4. Test with `curl` against `/mcp/sse` endpoint
+
+**Debug ReviewBoard API issues**:
+1. Check `examples/debug-*.js` scripts for API exploration
+2. Use `examples/explore-reviewboard-api.js` to test endpoints
+3. Enable axios debug: `axios.interceptors.request.use(config => console.log(config))`
