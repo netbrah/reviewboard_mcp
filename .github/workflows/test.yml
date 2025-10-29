@@ -17,6 +17,11 @@ jobs:
     name: Test stdio Mode
     runs-on: ubuntu-latest
     
+    # Use RHEL 9 UBI container for build environment
+    container:
+      image: registry.access.redhat.com/ubi9/nodejs-20:latest
+      options: --user root
+    
     # Only run if ReviewBoard credentials are configured
     if: secrets.REVIEWBOARD_API_TOKEN != ''
     
@@ -24,11 +29,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      - name: Install git (required for actions/checkout in RHEL container)
+        run: |
+          yum install -y git tar gzip
       
       - name: Install dependencies
         run: npm ci
@@ -56,6 +59,11 @@ jobs:
     name: Test HTTP Mode
     runs-on: ubuntu-latest
     
+    # Use RHEL 9 UBI container for build environment
+    container:
+      image: registry.access.redhat.com/ubi9/nodejs-20:latest
+      options: --user root
+    
     # Only run if ReviewBoard credentials are configured
     if: secrets.REVIEWBOARD_API_TOKEN != ''
     
@@ -71,11 +79,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      - name: Install git and curl (required in RHEL container)
+        run: |
+          yum install -y git tar gzip curl jq
       
       - name: Install dependencies
         run: npm ci
@@ -132,7 +138,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
+      - name: Setup Node.js (for local build before Docker)
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -141,7 +147,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Build Docker image
+      - name: Build project (required for RHEL UBI Dockerfile)
+        run: npm run build
+      
+      - name: Build Docker image (RHEL 9 UBI based)
         run: docker build -t reviewboard-mcp:test .
       
       - name: Run container
