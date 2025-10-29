@@ -1,0 +1,284 @@
+# GitHub Copilot Agent Setup Steps
+# This file defines the development environment setup for the ReviewBoard MCP Server
+# Reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/customize-the-agent-environment
+
+name: ReviewBoard MCP Server Development Environment
+description: Setup steps for developing and testing the ReviewBoard MCP Server
+
+# Environment Setup Steps
+steps:
+  - name: Install Node.js Dependencies
+    description: Install all npm dependencies required for development
+    commands:
+      - npm install
+    
+  - name: Build TypeScript Project
+    description: Compile TypeScript source files to JavaScript
+    commands:
+      - npm run build
+    
+  - name: Setup Test Environment
+    description: Configure test credentials for ReviewBoard API access
+    commands:
+      - cp .env.test.template .env.test
+      - echo "# Edit .env.test with your actual ReviewBoard credentials"
+      - echo "# REVIEWBOARD_BASE_URL=https://reviewboard.example.com"
+      - echo "# REVIEWBOARD_API_TOKEN=your-api-token-here"
+    notes: |
+      You need to manually edit .env.test with your ReviewBoard credentials:
+      - REVIEWBOARD_BASE_URL: Your ReviewBoard instance URL
+      - REVIEWBOARD_API_TOKEN: Your personal API token from ReviewBoard
+      
+      The .env.test file is in .gitignore and will not be committed.
+
+  - name: Verify Installation
+    description: Run a quick verification to ensure everything is set up correctly
+    commands:
+      - npm run build
+      - echo "Build successful!"
+    
+# Development Tools
+tools:
+  - name: TypeScript Compiler
+    version: "^5.0.0"
+    description: TypeScript compiler for building the project
+    
+  - name: Node.js
+    version: ">=18.0.0"
+    description: JavaScript runtime required for the MCP server
+    
+  - name: npm
+    version: ">=9.0.0"
+    description: Package manager for installing dependencies
+
+# Testing
+testing:
+  - name: Run All Tests
+    description: Execute the complete test suite
+    commands:
+      - npm test
+    notes: |
+      Tests require valid ReviewBoard credentials in .env.test file.
+      Tests will connect to the ReviewBoard API to verify functionality.
+    
+  - name: Run Specific Test Suites
+    description: Run individual test suites
+    commands:
+      - npm run test:patch-diffs    # Test patch diff capabilities
+      - npm run test:revision       # Test revision tracking
+      - npm run test:comments       # Test comment resolution
+
+# Development Modes
+development_modes:
+  - name: stdio Mode (Local Development)
+    description: Run the MCP server in stdio mode for local testing with VS Code
+    commands:
+      - npm start
+    notes: |
+      This mode reads from stdin and writes to stdout.
+      Configure in VS Code's .vscode/mcp.json for integration.
+      Credentials are provided via environment variables or VS Code prompts.
+    
+  - name: HTTP Streaming Mode (Production)
+    description: Run the MCP server as an HTTP service with SSE transport
+    commands:
+      - npm run start:http
+    notes: |
+      This mode runs an Express web server on port 3000.
+      Credentials are provided per-request via HTTP headers:
+      - Authorization: Bearer <reviewboard-api-token>
+      - X-ReviewBoard-URL: https://reviewboard.example.com
+      
+      Test the health endpoint: curl http://localhost:3000/health
+    
+  - name: Development Watch Mode
+    description: Automatically rebuild TypeScript files on changes
+    commands:
+      - npm run dev
+    notes: |
+      Useful during development to automatically recompile when files change.
+      Run this in a separate terminal while editing code.
+
+# Build and Deployment
+build_and_deployment:
+  - name: Clean Build
+    description: Remove build artifacts and rebuild from scratch
+    commands:
+      - npm run clean
+      - npm run build
+    
+  - name: Build Docker Image
+    description: Build a Docker container for deployment
+    commands:
+      - docker build -t reviewboard-mcp-server:latest .
+    
+  - name: Deploy with Docker Compose
+    description: Deploy the server using Docker Compose
+    commands:
+      - docker-compose up -d
+    
+  - name: Deploy to Kubernetes
+    description: Deploy the server to a Kubernetes cluster
+    commands:
+      - kubectl apply -f k8s-deployment.yaml
+
+# Configuration Files
+configuration_files:
+  - path: .env.test.template
+    description: Template for test environment variables
+    notes: Copy to .env.test and fill in your credentials
+    
+  - path: .vscode/mcp.json
+    description: VS Code MCP server configuration for stdio mode
+    notes: Defines how VS Code connects to the local MCP server
+    
+  - path: package.json
+    description: Node.js project configuration with all scripts and dependencies
+    
+  - path: tsconfig.json
+    description: TypeScript compiler configuration
+    
+  - path: Dockerfile
+    description: Docker container configuration for HTTP mode deployment
+    
+  - path: docker-compose.yml
+    description: Docker Compose configuration for simple deployment
+    
+  - path: k8s-deployment.yaml
+    description: Kubernetes deployment configuration with ingress, HPA, and PDB
+
+# Documentation
+documentation:
+  - path: README.md
+    description: Main project documentation with features and quick start
+    
+  - path: docs/TOOLS.md
+    description: Complete reference for all 17 MCP tools
+    
+  - path: docs/DEPLOYMENT.md
+    description: Step-by-step deployment guide for production
+    
+  - path: docs/HTTP-MIGRATION-SUMMARY.md
+    description: Architecture comparison between stdio and HTTP modes
+    
+  - path: docs/LITELLM-MCP-REGISTRY-API.md
+    description: Complete API reference for LiteLLM proxy integration
+    
+  - path: docs/TESTING-HTTP.md
+    description: Testing procedures for HTTP streaming mode
+    
+  - path: docs/NATURAL-LANGUAGE-QUESTIONS.md
+    description: Examples of natural language questions you can ask
+
+# Secrets and Credentials
+secrets:
+  - name: REVIEWBOARD_API_TOKEN
+    description: ReviewBoard API token for authentication
+    required: true
+    usage:
+      - Local testing (.env.test)
+      - GitHub Actions CI/CD
+      - Production deployment (per-request header)
+    notes: |
+      Generate from ReviewBoard: User Menu → My Account → API Tokens
+      Required for all API operations.
+    
+  - name: REVIEWBOARD_BASE_URL
+    description: Base URL of your ReviewBoard instance
+    required: true
+    usage:
+      - Local testing (.env.test)
+      - Production deployment (per-request header)
+    example: https://reviewboard.netapp.com
+    
+  - name: LITELLM_API_KEY
+    description: LiteLLM proxy API key for server registration
+    required: false
+    usage:
+      - Registering the MCP server with LiteLLM proxy
+      - CI/CD automated deployment
+    notes: |
+      Only needed for production deployment with LiteLLM proxy.
+      Not required for local development or standalone deployment.
+
+# Common Development Tasks
+common_tasks:
+  - task: Add a new tool
+    steps:
+      1. Add method to src/reviewboard-client.ts
+      2. Register tool in both src/index.ts (stdio) and src/index-http.ts (HTTP)
+      3. Add test in test/test-*.js
+      4. Update docs/TOOLS.md
+      5. Run npm test to verify
+    
+  - task: Fix a bug
+    steps:
+      1. Identify the bug location (client vs server)
+      2. Write a test that reproduces the bug
+      3. Fix the bug in source code
+      4. Verify test passes
+      5. Run full test suite to ensure no regressions
+    
+  - task: Update documentation
+    steps:
+      1. Edit relevant markdown file in docs/
+      2. Update README.md if needed
+      3. Build project to verify no broken references
+      4. Commit documentation changes
+    
+  - task: Prepare for production deployment
+    steps:
+      1. Run full test suite (npm test)
+      2. Build project (npm run build)
+      3. Build Docker image (docker build)
+      4. Test Docker image locally (docker-compose up)
+      5. Deploy to production (Kubernetes/Docker)
+      6. Register with LiteLLM proxy (see docs/DEPLOYMENT.md)
+      7. Verify health endpoint
+      8. Test tools via proxy
+
+# Troubleshooting
+troubleshooting:
+  - issue: Build fails with TypeScript errors
+    solution:
+      - Run npm install to ensure dependencies are up to date
+      - Check tsconfig.json for correct configuration
+      - Verify TypeScript version matches package.json
+    
+  - issue: Tests fail with authentication errors
+    solution:
+      - Verify .env.test has correct credentials
+      - Check that REVIEWBOARD_BASE_URL is accessible
+      - Verify API token is valid (regenerate if needed)
+      - Test connection manually with curl
+    
+  - issue: HTTP server fails to start
+    solution:
+      - Check if port 3000 is already in use (change PORT environment variable)
+      - Verify build completed successfully (npm run build)
+      - Check console output for specific error messages
+    
+  - issue: SSE connection fails with 401
+    solution:
+      - Verify Authorization header is present and correct
+      - Verify X-ReviewBoard-URL header is present
+      - Check ReviewBoard server is accessible from deployment
+      - Verify API token has correct permissions
+
+# Additional Resources
+resources:
+  - name: MCP Protocol Documentation
+    url: https://modelcontextprotocol.io/
+    description: Official Model Context Protocol documentation
+    
+  - name: ReviewBoard API Documentation
+    url: https://www.reviewboard.org/docs/manual/latest/webapi/
+    description: ReviewBoard Web API reference
+    
+  - name: LiteLLM Proxy Documentation
+    url: https://docs.litellm.ai/docs/proxy/
+    description: LiteLLM proxy documentation
+    
+  - name: Project Repository
+    url: https://github.com/netbrah/reviewboard_mcp
+    description: Source code and issue tracking
