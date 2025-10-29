@@ -29,9 +29,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install git (required for actions/checkout in RHEL container)
+      - name: Install git and build tools (required for actions/checkout in RHEL container)
         run: |
-          yum install -y git tar gzip
+          yum install -y git tar gzip file
       
       - name: Install dependencies
         run: npm ci
@@ -79,9 +79,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install git and curl (required in RHEL container)
+      - name: Install git, curl, jq and build tools (required in RHEL container)
         run: |
-          yum install -y git tar gzip curl jq
+          yum install -y git tar gzip curl jq file
       
       - name: Install dependencies
         run: npm ci
