@@ -6,15 +6,6 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
-    inputs:
-      deploy_environment:
-        description: 'Environment to deploy to'
-        required: false
-        type: choice
-        options:
-          - none
-          - staging
-          - production
 
 env:
   NODE_VERSION: '18'
@@ -167,119 +158,12 @@ jobs:
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
 
-  # Job 4: Deploy to Staging (optional)
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [build-and-test, build-docker]
-    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'staging')
-    environment:
-      name: staging
-      url: https://mcp-reviewboard-staging.example.com
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Deploy to staging
-        run: |
-          echo "Deploying to staging environment..."
-          echo "Image: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          # Add actual deployment commands here
-          # Examples:
-          # - kubectl set image deployment/reviewboard-mcp reviewboard-mcp=$IMAGE
-          # - helm upgrade reviewboard-mcp ./chart --set image.tag=$TAG
-          # - ansible-playbook deploy-staging.yml
-      
-      # NOTE: LiteLLM registration must be done manually
-      # GitHub Actions does not have access to LiteLLM proxy API
-      # See docs/DEPLOYMENT-WORKFLOW.md for complete workflow
-      # See docs/MANUAL-LITELLM-REGISTRATION.md for registration instructions
-      
-      - name: Post-deployment notice
-        run: |
-          echo "⚠️ MANUAL STEP REQUIRED: LiteLLM Registration" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The server has been deployed, but you must manually register it with LiteLLM." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
-          echo "1. Verify deployment: \`curl https://mcp-reviewboard-staging.example.com/health\`" >> $GITHUB_STEP_SUMMARY
-          echo "2. Follow [docs/MANUAL-LITELLM-REGISTRATION.md](../docs/MANUAL-LITELLM-REGISTRATION.md)" >> $GITHUB_STEP_SUMMARY
-          echo "3. Register server with LiteLLM proxy using the registration payload" >> $GITHUB_STEP_SUMMARY
-          echo "4. Verify registration: Check server appears in LiteLLM server list" >> $GITHUB_STEP_SUMMARY
-          echo "5. Test end-to-end: Connect via VS Code using [examples/vscode-configs/mcp-proxy.json](../examples/vscode-configs/mcp-proxy.json)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Documentation:**" >> $GITHUB_STEP_SUMMARY
-          echo "- [Complete Workflow](../docs/DEPLOYMENT-WORKFLOW.md)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Authentication Guide](../docs/LLM-PROXY-AUTHENTICATION.md)" >> $GITHUB_STEP_SUMMARY
-      
-      - name: Health check
-        run: |
-          echo "Waiting for deployment to be ready..."
-          sleep 30
-          curl -f https://mcp-reviewboard-staging.example.com/health || exit 1
+  # NOTE: Deployment to production environments is not automated
+  # See docs/DEPLOYMENT-WORKFLOW.md for manual deployment instructions
+  # See docs/AIRLOCK-TESTING.md for testing in isolated environments
+  # LiteLLM registration must be done manually - see docs/MANUAL-LITELLM-REGISTRATION.md
 
-  # Job 5: Deploy to Production (manual approval required)
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [build-and-test, build-docker, security-scan]
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'production'))
-    environment:
-      name: production
-      url: https://mcp-reviewboard.ai.eng.netapp.com
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Deploy to production
-        run: |
-          echo "Deploying to production environment..."
-          echo "Image: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          # Add actual deployment commands here
-          # Examples:
-          # - kubectl set image deployment/reviewboard-mcp reviewboard-mcp=$IMAGE
-          # - helm upgrade reviewboard-mcp ./chart --set image.tag=$TAG --namespace production
-      
-      # NOTE: LiteLLM registration must be done manually
-      # GitHub Actions does not have access to LiteLLM proxy API
-      # See docs/DEPLOYMENT-WORKFLOW.md for complete workflow
-      # See docs/MANUAL-LITELLM-REGISTRATION.md for registration instructions
-      
-      - name: Health check
-        run: |
-          echo "Waiting for deployment to be ready..."
-          sleep 30
-          curl -f https://mcp-reviewboard.ai.eng.netapp.com/health || exit 1
-      
-      - name: Create deployment summary
-        run: |
-          echo "## Production Deployment Complete :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** https://mcp-reviewboard.ai.eng.netapp.com" >> $GITHUB_STEP_SUMMARY
-          echo "**Health:** https://mcp-reviewboard.ai.eng.netapp.com/health" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**⚠️ MANUAL STEP REQUIRED: LiteLLM Registration**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The server has been deployed to production, but you must manually register it with LiteLLM." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
-          echo "1. Verify deployment: \`curl https://mcp-reviewboard.ai.eng.netapp.com/health\`" >> $GITHUB_STEP_SUMMARY
-          echo "2. Follow [docs/MANUAL-LITELLM-REGISTRATION.md](../docs/MANUAL-LITELLM-REGISTRATION.md)" >> $GITHUB_STEP_SUMMARY
-          echo "3. Register server with LiteLLM proxy" >> $GITHUB_STEP_SUMMARY
-          echo "4. Verify registration successful" >> $GITHUB_STEP_SUMMARY
-          echo "5. Test end-to-end with a user account" >> $GITHUB_STEP_SUMMARY
-          echo "6. Announce to team with documentation links" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Documentation:**" >> $GITHUB_STEP_SUMMARY
-          echo "- [Complete Workflow](../docs/DEPLOYMENT-WORKFLOW.md)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Authentication Guide](../docs/LLM-PROXY-AUTHENTICATION.md)" >> $GITHUB_STEP_SUMMARY
-          echo "- [VS Code Configs](../examples/vscode-configs/)" >> $GITHUB_STEP_SUMMARY
-
-  # Job 6: Create Release (on tag push)
+  # Job 4: Create Release (on tag push)
   create-release:
     name: Create Release
     runs-on: ubuntu-latest

@@ -179,9 +179,13 @@ X-ReviewBoard-URL: https://reviewboard.netapp.com
 1. Go to your LLM proxy portal
 2. Navigate to API Keys section
 3. Generate a new key with MCP access
-4. Format: `Bearer user=${username}&key=sk-1234...`
+4. You'll need:
+   - **Username**: Your corporate username (e.g., `john.doe`)
+   - **API Key**: Generated key (e.g., `sk-1234567890abcdef...`)
 
 **Important**: Keep your LLM API key secure. It provides access to all MCP servers you're authorized for.
+
+**Note**: In VS Code config, you provide username and key separately as `${input:username}` and `${input:llm_key}`. They are automatically combined into: `Bearer user=${username}&key=${llm_key}`
 
 ### ReviewBoard API Token
 
