@@ -53,12 +53,38 @@ This MCP server supports **two deployment modes**:
 - Runs as a web service with HTTP + Server-Sent Events (SSE)
 - Scalable deployment (Kubernetes, Docker, etc.)
 - Multiple concurrent clients
-- Integration with LiteLLM proxy
+- Integration with LiteLLM proxy for centralized authentication
 - Per-request authentication
 
 **Choose your mode based on use case:**
 - Local development → Use stdio mode (`npm start`)
 - Production/team deployment → Use HTTP streaming mode (`npm run start:http`)
+- Airlock testing → Use Docker + HTTP mode (see [AIRLOCK-TESTING.md](./docs/AIRLOCK-TESTING.md))
+
+## 🔐 LLM Proxy Integration
+
+For production use, this server can be deployed through the **LiteLLM proxy** infrastructure:
+
+### Benefits of LLM Proxy
+- ✅ **Centralized Authentication** - Single sign-on with your organization
+- ✅ **Access Control** - Group-based permissions management
+- ✅ **Standardized API** - Consistent interface across all MCP servers
+- ✅ **Monitoring & Logging** - Centralized usage tracking
+- ✅ **Rate Limiting** - Protect against abuse
+
+### Connection Methods
+
+**Via LLM Proxy (Production):**
+```
+https://llm-proxy-api.ai.eng.netapp.com/mcp/reviewboard_netapp
+```
+
+**Direct Connection (Development/Testing):**
+```
+https://mcp-reviewboard.ai.eng.netapp.com
+```
+
+See [docs/LLM-PROXY-AUTHENTICATION.md](./docs/LLM-PROXY-AUTHENTICATION.md) for complete authentication guide.
 
 ## ⚙️ Configuration
 
@@ -68,7 +94,7 @@ The server uses secure input prompts configured in `.vscode/mcp.json`:
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "reviewboard": {
       "command": "node",
       "args": ["/path/to/reviewboard_mcp/build/index.js"],
@@ -96,6 +122,8 @@ The server uses secure input prompts configured in `.vscode/mcp.json`:
 
 VS Code will securely prompt for your credentials when the server starts (API token is masked).
 
+**See [examples/vscode-configs/](./examples/vscode-configs/) for complete configuration examples.**
+
 ### For HTTP Streaming Mode (Production Deployment)
 
 No environment variables needed! Credentials are provided **per-request** via HTTP headers:
@@ -110,6 +138,28 @@ X-ReviewBoard-URL: https://reviewboard.netapp.com
 ```
 
 See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for complete deployment guide.
+
+### For LLM Proxy Connection (Team Use)
+
+Connect through the LiteLLM proxy with standardized authentication:
+
+```json
+{
+  "mcpServers": {
+    "reviewboard": {
+      "url": "https://llm-proxy-api.ai.eng.netapp.com/mcp/reviewboard_netapp",
+      "transport": "sse",
+      "headers": {
+        "x-litellm-api-key": "${input:llm_api_key}",
+        "x-mcp-reviewboard-authorization": "Bearer ${input:reviewboard_api_token}",
+        "x-reviewboard-url": "${input:reviewboard_base_url}"
+      }
+    }
+  }
+}
+```
+
+See [docs/LLM-PROXY-AUTHENTICATION.md](./docs/LLM-PROXY-AUTHENTICATION.md) for complete guide.
 
 ### For Testing (Environment Variables)
 
@@ -166,11 +216,17 @@ See [docs/TESTING-HTTP.md](./docs/TESTING-HTTP.md) for HTTP testing guide.
 - 📦 [Reorganization Summary](./REORGANIZATION_SUMMARY.md) - What changed and why
 - 🌐 **[HTTP Migration Summary](./docs/HTTP-MIGRATION-SUMMARY.md)** ⭐ **NEW!** - Complete guide to HTTP streaming mode
 
+**Authentication & Deployment:**
+- **[docs/LLM-PROXY-AUTHENTICATION.md](./docs/LLM-PROXY-AUTHENTICATION.md)** ⭐ **NEW!** - Complete authentication guide for LLM proxy
+- **[docs/AIRLOCK-TESTING.md](./docs/AIRLOCK-TESTING.md)** ⭐ **NEW!** - Test in airlock with Docker
+- **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** ⭐ - Deploy as web service (Kubernetes, Docker, VM)
+- **[docs/MANUAL-LITELLM-REGISTRATION.md](./docs/MANUAL-LITELLM-REGISTRATION.md)** ⭐ - Register with LiteLLM proxy
+- **[examples/vscode-configs/](./examples/vscode-configs/)** ⭐ **NEW!** - VS Code configuration examples
+
 **Detailed Guides:**
 - **[docs/ENHANCEMENTS.md](./docs/ENHANCEMENTS.md)** ⭐ - Detailed guide to new patch diff capabilities
-- **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** ⭐ **NEW!** - Deploy as web service (Kubernetes, Docker, VM)
-- **[docs/HTTP-STREAMING-MIGRATION.md](./docs/HTTP-STREAMING-MIGRATION.md)** ⭐ **NEW!** - stdio vs HTTP streaming concepts
-- **[docs/TESTING-HTTP.md](./docs/TESTING-HTTP.md)** ⭐ **NEW!** - Testing guide for HTTP mode
+- **[docs/HTTP-STREAMING-MIGRATION.md](./docs/HTTP-STREAMING-MIGRATION.md)** - stdio vs HTTP streaming concepts
+- **[docs/TESTING-HTTP.md](./docs/TESTING-HTTP.md)** - Testing guide for HTTP mode
 - **[docs/TOOLS.md](./docs/TOOLS.md)** - Complete tool reference with all 17 tools
 - **[docs/NATURAL-LANGUAGE-QUESTIONS.md](./docs/NATURAL-LANGUAGE-QUESTIONS.md)** - 30+ natural language questions you can ask
 - **[docs/QUICK-REFERENCE.md](./docs/QUICK-REFERENCE.md)** - Quick command reference
