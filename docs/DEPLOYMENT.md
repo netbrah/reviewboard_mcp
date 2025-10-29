@@ -231,10 +231,11 @@ curl -X 'POST' \
   -H 'Content-Type: application/json' \
   -d '{
     "server_name": "reviewboard_netapp",
+    "alias": "reviewboard",
     "description": "NetApp ReviewBoard MCP server - Natural language interface for code reviews",
     "url": "https://mcp-reviewboard.ai.eng.netapp.com/mcp/",
-    "transport": "http",
-    "auth_type": "authorization",
+    "transport": "sse",
+    "auth_type": "bearer_token",
     "mcp_info": {
       "logo_url": "app/static/icons/ReviewBoard.png",
       "token_prefix": "Bearer",
@@ -244,24 +245,76 @@ curl -X 'POST' \
       "description": "Natural language interface for ReviewBoard code reviews with comprehensive analysis"
     },
     "mcp_access_groups": ["reviewboard"],
-    "allowed_tools": []
+    "allowed_tools": [],
+    "extra_headers": ["X-ReviewBoard-URL"]
   }'
 ```
 
 ### Verify Registration
 
 ```bash
-# List all servers
-curl 'https://llm-proxy-api.ai.eng.netapp.com/v1/mcp/server' \
+# List all registered MCP servers
+curl -X GET 'https://llm-proxy-api.ai.eng.netapp.com/v1/mcp/server' \
+  -H 'accept: application/json' \
   -H 'x-litellm-api-key: YOUR_API_KEY'
 
-# Health check via proxy
-curl 'https://llm-proxy-api.ai.eng.netapp.com/v1/mcp/server/health' \
+# Expected response: array of LiteLLM_MCPServerTable objects
+# [
+#   {
+#     "server_id": "uuid",
+#     "server_name": "reviewboard_netapp",
+#     "alias": "reviewboard",
+#     "url": "https://mcp-reviewboard.ai.eng.netapp.com/mcp/",
+#     "transport": "sse",
+#     "auth_type": "bearer_token",
+#     "status": "healthy",
+#     "last_health_check": "2025-10-28T12:34:56.789Z",
+#     ...
+#   }
+# ]
+
+# Health check all MCP servers
+curl -X GET 'https://llm-proxy-api.ai.eng.netapp.com/v1/mcp/server/health' \
+  -H 'accept: application/json' \
   -H 'x-litellm-api-key: YOUR_API_KEY'
 
-# List tools
-curl 'https://llm-proxy-api.ai.eng.netapp.com/mcp-rest/tools/list?server_id=YOUR_SERVER_ID' \
+# List tools from all servers (or specific server_id)
+curl -X GET 'https://llm-proxy-api.ai.eng.netapp.com/mcp-rest/tools/list?server_id=YOUR_SERVER_ID' \
+  -H 'accept: application/json' \
   -H 'x-litellm-api-key: YOUR_API_KEY'
+
+# Expected response:
+# {
+#   "tools": [
+#     {
+#       "name": "get_review_request",
+#       "description": "Get details of a specific review request...",
+#       "inputSchema": {...},
+#       "mcp_info": {
+#         "server_name": "reviewboard_netapp",
+#         "logo_url": "app/static/icons/ReviewBoard.png"
+#       }
+#     },
+#     ...
+#   ],
+#   "error": null,
+#   "message": "Successfully retrieved tools"
+# }
+```
+
+### Update Existing Server
+
+```bash
+# Update server configuration (e.g., change URL after redeployment)
+curl -X PUT 'https://llm-proxy-api.ai.eng.netapp.com/v1/mcp/server' \
+  -H 'accept: application/json' \
+  -H 'x-litellm-api-key: YOUR_API_KEY' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "server_id": "YOUR_SERVER_ID",
+    "url": "https://new-mcp-reviewboard.ai.eng.netapp.com/mcp/",
+    "description": "Updated description"
+  }'
 ```
 
 ## Authentication Flow

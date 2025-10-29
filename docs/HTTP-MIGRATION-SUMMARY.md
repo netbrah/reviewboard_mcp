@@ -119,10 +119,11 @@ curl -X 'POST' \
   -H 'Content-Type: application/json' \
   -d '{
     "server_name": "reviewboard_netapp",
+    "alias": "reviewboard",
     "description": "NetApp ReviewBoard MCP server - Natural language interface for code reviews",
     "url": "https://mcp-reviewboard.ai.eng.netapp.com/mcp/",
-    "transport": "http",
-    "auth_type": "authorization",
+    "transport": "sse",
+    "auth_type": "bearer_token",
     "mcp_info": {
       "logo_url": "app/static/icons/ReviewBoard.png",
       "token_prefix": "Bearer",
@@ -131,7 +132,8 @@ curl -X 'POST' \
       "server_name": "reviewboard_netapp",
       "description": "Natural language interface for ReviewBoard code reviews"
     },
-    "mcp_access_groups": ["reviewboard"]
+    "mcp_access_groups": ["reviewboard"],
+    "extra_headers": ["X-ReviewBoard-URL"]
   }'
 ```
 
