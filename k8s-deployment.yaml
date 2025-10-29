@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviewboard-mcp-server
+  namespace: mcp-servers
+  labels:
+    app: reviewboard-mcp-server
+    version: v1.0.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: reviewboard-mcp-server
+  template:
+    metadata:
+      labels:
+        app: reviewboard-mcp-server
+        version: v1.0.0
+    spec:
+      containers:
+      - name: server
+        image: your-registry/reviewboard-mcp-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "3000"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: NODE_ENV
+          value: "production"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reviewboard-mcp-server
+  namespace: mcp-servers
+  labels:
+    app: reviewboard-mcp-server
+spec:
+  selector:
+    app: reviewboard-mcp-server
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: reviewboard-mcp-server
+  namespace: mcp-servers
+  annotations:
+    # HTTPS redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+    # Certificate management (adjust for your setup)
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+    # CORS configuration (if needed)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, X-ReviewBoard-URL, Content-Type"
+
+    # Proxy settings for SSE (long-lived connections)
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+
+    # Rate limiting (adjust as needed)
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - mcp-reviewboard.ai.eng.netapp.com
+    secretName: reviewboard-mcp-tls
+  rules:
+  - host: mcp-reviewboard.ai.eng.netapp.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: reviewboard-mcp-server
+            port:
+              number: 80
+---
+# Optional: HorizontalPodAutoscaler for auto-scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: reviewboard-mcp-server
+  namespace: mcp-servers
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: reviewboard-mcp-server
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+# Optional: PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: reviewboard-mcp-server
+  namespace: mcp-servers
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: reviewboard-mcp-server
