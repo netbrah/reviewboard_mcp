@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 /**
- * ReviewBoard MCP Server - HTTP Streaming (SSE) Transport
+ * ReviewBoard MCP Server - HTTP Streaming (Streamable HTTP) Transport
  *
- * This version uses HTTP with Server-Sent Events (SSE) instead of stdio,
- * allowing deployment as a web service that can be registered with LiteLLM proxy.
+ * This version uses the modern Streamable HTTP transport (POST /mcp endpoint)
+ * for deployment as a web service that can be registered with LiteLLM proxy.
+ *
+ * Based on official MCP SDK documentation and examples.
  */
 
 import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { ReviewBoardClient } from "./reviewboard-client.js";
 
@@ -23,9 +25,13 @@ const app = express();
 
 // Security middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // SSE requires this
+  contentSecurityPolicy: false, // Required for SSE streams
 }));
-app.use(cors());
+app.use(cors({
+  origin: '*', // Configure appropriately for production
+  exposedHeaders: ['Mcp-Session-Id'],
+  allowedHeaders: ['Content-Type', 'mcp-session-id', 'Authorization', 'X-ReviewBoard-URL']
+}));
 app.use(express.json());
 
 /**
@@ -53,16 +59,13 @@ function extractCredentials(req: Request): {
 
   // Support different auth types
   if (authHeader.startsWith("Bearer ")) {
-    // API Token
     const apiToken = authHeader.substring(7);
     return { baseUrl, apiToken };
   } else if (authHeader.startsWith("Basic ")) {
-    // Username/Password (base64 encoded)
     const credentials = Buffer.from(authHeader.substring(6), "base64").toString();
     const [username, password] = credentials.split(":");
     return { baseUrl, username, password };
   } else if (authHeader.startsWith("Token ")) {
-    // Alternative token format
     const apiToken = authHeader.substring(6);
     return { baseUrl, apiToken };
   }
@@ -72,7 +75,6 @@ function extractCredentials(req: Request): {
 
 /**
  * Create and configure an MCP server instance with all tools registered
- * This is called once per SSE connection
  */
 function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
   const server = new McpServer({
@@ -94,18 +96,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
   }
 
   // ============================================================================
-  // Tool Registration - All 17 tools
+  // Tool Registration - All 17 tools using NEW API
   // ============================================================================
 
   // Tool: Get review requests
-  server.tool(
+  server.registerTool(
     "get_review_requests",
-    "Get a list of review requests",
     {
-      status: z.enum(["pending", "submitted", "discarded", "all"]).optional().describe("Filter by status"),
-      repository: z.string().optional().describe("Filter by repository name"),
-      user: z.string().optional().describe("Filter by user"),
-      limit: z.number().min(1).max(200).default(25).describe("Number of results to return"),
+      title: "Get Review Requests",
+      description: "Get a list of review requests with optional filtering",
+      inputSchema: {
+        status: z.enum(["pending", "submitted", "discarded", "all"]).optional().describe("Filter by status"),
+        repository: z.string().optional().describe("Filter by repository name"),
+        user: z.string().optional().describe("Filter by user"),
+        limit: z.number().min(1).max(200).default(25).describe("Number of results to return"),
+      },
     },
     async ({ status, repository, user, limit = 25 }) => {
       try {
@@ -124,6 +129,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(reviewRequests, null, 2),
             },
           ],
+          structuredContent: reviewRequests as any,
         };
       } catch (error) {
         return {
@@ -133,17 +139,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching review requests: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get review request details
-  server.tool(
+  server.registerTool(
     "get_review_request",
-    "Get details of a specific review request",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
+      title: "Get Review Request",
+      description: "Get detailed information about a specific review request",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+      },
     },
     async ({ reviewRequestId }) => {
       try {
@@ -157,6 +167,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(reviewRequest, null, 2),
             },
           ],
+          structuredContent: reviewRequest as any,
         };
       } catch (error) {
         return {
@@ -166,17 +177,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching review request: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get reviews for a review request
-  server.tool(
+  server.registerTool(
     "get_reviews",
-    "Get reviews for a specific review request",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
+      title: "Get Reviews",
+      description: "Get all reviews for a specific review request",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+      },
     },
     async ({ reviewRequestId }) => {
       try {
@@ -190,6 +205,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(reviews, null, 2),
             },
           ],
+          structuredContent: reviews as any,
         };
       } catch (error) {
         return {
@@ -199,18 +215,22 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching reviews: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get diff files
-  server.tool(
+  server.registerTool(
     "get_diff_files",
-    "Get the files changed in a diff for a specific review request",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      diffRevision: z.number().optional().describe("Specific diff revision (latest if not specified)"),
+      title: "Get Diff Files",
+      description: "Get the list of files changed in a diff",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        diffRevision: z.number().optional().describe("Specific diff revision (latest if not specified)"),
+      },
     },
     async ({ reviewRequestId, diffRevision }) => {
       try {
@@ -224,6 +244,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(files, null, 2),
             },
           ],
+          structuredContent: files as any,
         };
       } catch (error) {
         return {
@@ -233,18 +254,22 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching diff files: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get full diff patch
-  server.tool(
+  server.registerTool(
     "get_full_diff_patch",
-    "Get the complete unified diff patch for a review request",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      diffRevision: z.number().optional().describe("Specific diff revision (latest if not specified)"),
+      title: "Get Full Diff Patch",
+      description: "Get the complete unified diff patch for a review request",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        diffRevision: z.number().optional().describe("Specific diff revision (latest if not specified)"),
+      },
     },
     async ({ reviewRequestId, diffRevision }) => {
       try {
@@ -258,6 +283,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: patch,
             },
           ],
+          structuredContent: { patch } as any,
         };
       } catch (error) {
         return {
@@ -267,17 +293,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching diff patch: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get comprehensive comments analysis
-  server.tool(
+  server.registerTool(
     "get_comprehensive_comments_analysis",
-    "Get comprehensive analysis of all comments with file content annotations",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
+      title: "Get Comments Analysis",
+      description: "Get comprehensive analysis of all comments with file content annotations",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+      },
     },
     async ({ reviewRequestId }) => {
       try {
@@ -291,6 +321,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(analysis, null, 2),
             },
           ],
+          structuredContent: analysis as any,
         };
       } catch (error) {
         return {
@@ -300,17 +331,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error getting comments analysis: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get repositories
-  server.tool(
+  server.registerTool(
     "get_repositories",
-    "Get a list of repositories",
     {
-      limit: z.number().min(1).max(200).default(25).describe("Number of results to return"),
+      title: "Get Repositories",
+      description: "Get a list of repositories",
+      inputSchema: {
+        limit: z.number().min(1).max(200).default(25).describe("Number of results to return"),
+      },
     },
     async ({ limit = 25 }) => {
       try {
@@ -324,6 +359,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(repositories, null, 2),
             },
           ],
+          structuredContent: repositories as any,
         };
       } catch (error) {
         return {
@@ -333,17 +369,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching repositories: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get users
-  server.tool(
+  server.registerTool(
     "get_users",
-    "Get a list of users",
     {
-      limit: z.number().min(1).max(200).default(25).describe("Number of results to return"),
+      title: "Get Users",
+      description: "Get a list of users",
+      inputSchema: {
+        limit: z.number().min(1).max(200).default(25).describe("Number of results to return"),
+      },
     },
     async ({ limit = 25 }) => {
       try {
@@ -357,6 +397,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(users, null, 2),
             },
           ],
+          structuredContent: users as any,
         };
       } catch (error) {
         return {
@@ -366,18 +407,22 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching users: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Search
-  server.tool(
+  server.registerTool(
     "search",
-    "Search across ReviewBoard content",
     {
-      query: z.string().describe("Search query"),
-      username: z.string().optional().describe("Search within specific user's content"),
+      title: "Search",
+      description: "Search across ReviewBoard content",
+      inputSchema: {
+        query: z.string().describe("Search query"),
+        username: z.string().optional().describe("Search within specific user's content"),
+      },
     },
     async ({ query, username }) => {
       try {
@@ -391,6 +436,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(results, null, 2),
             },
           ],
+          structuredContent: results as any,
         };
       } catch (error) {
         return {
@@ -400,18 +446,22 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error performing search: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get diff revisions
-  server.tool(
+  server.registerTool(
     "get_diff_revisions",
-    "List all diff revisions with summary and optionally include full patch differences between consecutive revisions",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      includePatchDiffs: z.boolean().optional().default(false).describe("Include full patch differences between consecutive revisions"),
+      title: "Get Diff Revisions",
+      description: "List all diff revisions with optional patch differences between consecutive revisions",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        includePatchDiffs: z.boolean().optional().default(false).describe("Include full patch differences between consecutive revisions"),
+      },
     },
     async ({ reviewRequestId, includePatchDiffs = false }) => {
       try {
@@ -425,6 +475,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(revisions, null, 2),
             },
           ],
+          structuredContent: revisions as any,
         };
       } catch (error) {
         return {
@@ -434,18 +485,22 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching diff revisions: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get revision summary
-  server.tool(
+  server.registerTool(
     "get_revision_summary",
-    "Get detailed summary of a specific revision including files changed and statistics",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      revision: z.number().describe("Revision number to summarize"),
+      title: "Get Revision Summary",
+      description: "Get detailed summary of a specific revision including files changed and statistics",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        revision: z.number().describe("Revision number to summarize"),
+      },
     },
     async ({ reviewRequestId, revision }) => {
       try {
@@ -459,6 +514,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(summary, null, 2),
             },
           ],
+          structuredContent: summary as any,
         };
       } catch (error) {
         return {
@@ -468,20 +524,24 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching revision summary: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get file at revision
-  server.tool(
+  server.registerTool(
     "get_file_at_revision",
-    "Get file content from a specific revision",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      filePath: z.string().describe("Path of the file to retrieve"),
-      revisionNumber: z.number().describe("Revision number (1 = first revision)"),
-      type: z.enum(["original", "patched"]).optional().default("patched").describe("Type of file to retrieve"),
+      title: "Get File at Revision",
+      description: "Get file content from a specific revision",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        filePath: z.string().describe("Path of the file to retrieve"),
+        revisionNumber: z.number().describe("Revision number (1 = first revision)"),
+        type: z.enum(["original", "patched"]).optional().default("patched").describe("Type of file to retrieve"),
+      },
     },
     async ({ reviewRequestId, filePath, revisionNumber, type = "patched" }) => {
       try {
@@ -495,6 +555,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(fileContent, null, 2),
             },
           ],
+          structuredContent: fileContent as any,
         };
       } catch (error) {
         return {
@@ -504,17 +565,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching file at revision: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get review history
-  server.tool(
+  server.registerTool(
     "get_review_history",
-    "Get complete change history of the review request - who changed what and when",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
+      title: "Get Review History",
+      description: "Get complete change history of the review request",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+      },
     },
     async ({ reviewRequestId }) => {
       try {
@@ -528,6 +593,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(history, null, 2),
             },
           ],
+          structuredContent: history as any,
         };
       } catch (error) {
         return {
@@ -537,19 +603,23 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching review history: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Compare revisions
-  server.tool(
+  server.registerTool(
     "compare_revisions",
-    "Compare two revisions to see what changed between them",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      fromRevision: z.number().describe("Starting revision number"),
-      toRevision: z.number().describe("Ending revision number"),
+      title: "Compare Revisions",
+      description: "Compare two revisions to see what changed between them",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        fromRevision: z.number().describe("Starting revision number"),
+        toRevision: z.number().describe("Ending revision number"),
+      },
     },
     async ({ reviewRequestId, fromRevision, toRevision }) => {
       try {
@@ -563,6 +633,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(comparison, null, 2),
             },
           ],
+          structuredContent: comparison as any,
         };
       } catch (error) {
         return {
@@ -572,18 +643,22 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error comparing revisions: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get file history
-  server.tool(
+  server.registerTool(
     "get_file_history",
-    "Track how a specific file evolved across all revisions",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      filePath: z.string().describe("Path of the file to track"),
+      title: "Get File History",
+      description: "Track how a specific file evolved across all revisions",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        filePath: z.string().describe("Path of the file to track"),
+      },
     },
     async ({ reviewRequestId, filePath }) => {
       try {
@@ -597,6 +672,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(history, null, 2),
             },
           ],
+          structuredContent: history as any,
         };
       } catch (error) {
         return {
@@ -606,18 +682,22 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching file history: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Get file revision history
-  server.tool(
+  server.registerTool(
     "get_file_revision_history",
-    "Get comprehensive revision history for a specific file including patch diffs between consecutive revisions",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
-      filePath: z.string().describe("Path of the file to track (supports partial matching)"),
+      title: "Get File Revision History",
+      description: "Get comprehensive revision history for a specific file including patch diffs",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+        filePath: z.string().describe("Path of the file to track (supports partial matching)"),
+      },
     },
     async ({ reviewRequestId, filePath }) => {
       try {
@@ -631,6 +711,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(history, null, 2),
             },
           ],
+          structuredContent: history as any,
         };
       } catch (error) {
         return {
@@ -640,17 +721,21 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error fetching file revision history: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
   );
 
   // Tool: Analyze comment resolution
-  server.tool(
+  server.registerTool(
     "analyze_comment_resolution",
-    "Analyze whether comments were addressed in subsequent revisions",
     {
-      reviewRequestId: z.number().describe("ID of the review request"),
+      title: "Analyze Comment Resolution",
+      description: "Analyze whether comments were addressed in subsequent revisions",
+      inputSchema: {
+        reviewRequestId: z.number().describe("ID of the review request"),
+      },
     },
     async ({ reviewRequestId }) => {
       try {
@@ -664,6 +749,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: JSON.stringify(analysis, null, 2),
             },
           ],
+          structuredContent: analysis as any,
         };
       } catch (error) {
         return {
@@ -673,6 +759,7 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
               text: `Error analyzing comment resolution: ${error instanceof Error ? error.message : "Unknown error"}`,
             },
           ],
+          isError: true,
         };
       }
     }
@@ -685,60 +772,72 @@ function createMcpServer(reviewBoardClient: ReviewBoardClient): McpServer {
 // HTTP Endpoints
 // ============================================================================
 
-// Health check endpoint (required for LiteLLM proxy)
+// Health check endpoint (required for LiteLLM proxy and Kubernetes)
 app.get("/health", (req: Request, res: Response) => {
   res.json({
     status: "healthy",
     service: "reviewboard-mcp-server",
     version: "1.0.0",
+    transport: "streamable-http",
     timestamp: new Date().toISOString(),
   });
 });
 
-// Main MCP endpoint using SSE
-app.get("/mcp/sse", async (req: Request, res: Response) => {
-  const sessionId = Math.random().toString(36).substring(7);
-  console.log(`[${sessionId}] New SSE connection`);
+// Main MCP endpoint - POST /mcp
+// This is the modern Streamable HTTP transport endpoint
+app.post("/mcp", async (req: Request, res: Response) => {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`[${requestId}] New MCP request`);
 
   try {
-    // Extract and validate credentials
+    // Extract and validate credentials from headers
     const credentials = extractCredentials(req);
 
     // Test connection to ReviewBoard
     const reviewBoardClient = new ReviewBoardClient(credentials);
     await reviewBoardClient.getApiRoot();
 
-    console.log(`[${sessionId}] Authenticated for ReviewBoard: ${credentials.baseUrl}`);
+    console.log(`[${requestId}] Authenticated for ReviewBoard: ${credentials.baseUrl}`);
 
     // Create MCP server instance with all tools registered
     const mcpServer = createMcpServer(reviewBoardClient);
 
-    // Create SSE transport
-    const transport = new SSEServerTransport("/mcp/message", res);
+    // Create StreamableHTTP transport (stateless mode)
+    // Use undefined sessionIdGenerator for stateless operation (recommended for most cases)
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+
+    // Cleanup on response close
+    res.on("close", () => {
+      transport.close().catch(err => {
+        console.error(`[${requestId}] Error closing transport:`, err);
+      });
+    });
 
     // Connect MCP server to transport
     await mcpServer.connect(transport);
 
-    console.log(`[${sessionId}] Session connected and ready`);
+    // Handle the request using transport's handleRequest method
+    // This handles all the protocol details automatically
+    await transport.handleRequest(req, res, req.body);
 
-    // Cleanup on disconnect
-    res.on("close", () => {
-      console.log(`[${sessionId}] Session disconnected`);
-    });
+    console.log(`[${requestId}] Request handled successfully`);
 
   } catch (error) {
-    console.error(`[${sessionId}] SSE connection error:`, error);
-    res.status(401).json({
-      error: "Authentication failed",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
+    console.error(`[${requestId}] MCP request error:`, error);
+    if (!res.headersSent) {
+      res.status(error instanceof Error && error.message.includes("Authentication") ? 401 : 500).json({
+        jsonrpc: "2.0",
+        error: {
+          code: error instanceof Error && error.message.includes("Authentication") ? -32000 : -32603,
+          message: error instanceof Error ? error.message : "Internal server error"
+        },
+        id: null
+      });
+    }
   }
-});
-
-// Message endpoint for SSE transport
-app.post("/mcp/message", async (req: Request, res: Response) => {
-  // This is handled by SSEServerTransport
-  res.status(405).json({ error: "Method not allowed" });
 });
 
 // Root endpoint - provide API info
@@ -746,12 +845,20 @@ app.get("/", (req: Request, res: Response) => {
   res.json({
     name: "ReviewBoard MCP Server",
     version: "1.0.0",
-    transport: "http-sse",
+    transport: "streamable-http",
+    protocol: "Model Context Protocol",
     endpoints: {
       health: "/health",
-      sse: "/mcp/sse",
+      mcp: "/mcp (POST)",
     },
     documentation: "https://github.com/netbrah/reviewboard_mcp",
+    authentication: {
+      type: "per-request",
+      headers: {
+        required: ["Authorization", "X-ReviewBoard-URL"],
+        authorization_format: "Bearer <reviewboard-api-token>",
+      },
+    },
   });
 });
 
@@ -760,30 +867,38 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({
     error: "Not found",
     message: `Endpoint ${req.path} not found`,
+    hint: "MCP endpoint is POST /mcp",
   });
 });
 
 // Error handler
 app.use((err: Error, req: Request, res: Response, next: any) => {
   console.error("Server error:", err);
-  res.status(500).json({
-    error: "Internal server error",
-    message: err.message,
-  });
+  if (!res.headersSent) {
+    res.status(500).json({
+      error: "Internal server error",
+      message: err.message,
+    });
+  }
 });
 
 // Start server
 app.listen(Number(PORT), HOST, () => {
-  console.log("🚀 ReviewBoard MCP Server (HTTP Streaming)");
+  console.log("🚀 ReviewBoard MCP Server (Streamable HTTP Transport)");
   console.log(`📡 Listening on http://${HOST}:${PORT}`);
-  console.log(`🔗 SSE endpoint: http://${HOST}:${PORT}/mcp/sse`);
-  console.log(`💚 Health check: http://${HOST}:${PORT}/health`);
+  console.log(`🔗 MCP endpoint: POST http://${HOST}:${PORT}/mcp`);
+  console.log(`💚 Health check: GET http://${HOST}:${PORT}/health`);
   console.log("");
-  console.log("Ready to accept connections!");
+  console.log("✅ Using modern StreamableHTTPServerTransport");
+  console.log("✅ All 17 tools registered with new API");
   console.log("");
-  console.log("Expected HTTP headers:");
+  console.log("Required HTTP headers:");
   console.log("  Authorization: Bearer <reviewboard-api-token>");
   console.log("  X-ReviewBoard-URL: https://reviewboard.example.com");
+  console.log("");
+  console.log("Test with:");
+  console.log("  npx @modelcontextprotocol/inspector");
+  console.log("  Connect to: http://localhost:3000/mcp");
 });
 
 // Graceful shutdown
