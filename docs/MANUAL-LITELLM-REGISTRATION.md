@@ -285,6 +285,20 @@ Content-Type: application/json
 
 ---
 
+## Questions for Infrastructure Team
+
+Before proceeding with deployment and registration, I'd like to clarify a few infrastructure details:
+
+1. **Deployment Environment**: Are the MCP services deployed using Docker containers? I'd like to understand the containerization strategy to ensure our deployment approach aligns with existing infrastructure.
+
+2. **User Authentication Flow**: I'm trying to understand how user authentication works with the LiteLLM Proxy. Specifically, when we register our service with the configuration shown above (including `auth_type: "bearer_token"` and `extra_headers: ["X-ReviewBoard-URL"]`), does the authentication get configured automatically, or are there additional setup steps required on the LiteLLM side?
+
+3. **Service Infrastructure**: Could you provide some context on where these services are hosted? I'm curious whether there are dedicated machines or clusters that the LiteLLM proxy routes requests to, which would help me better understand the network topology and any potential routing considerations.
+
+Understanding these details will help ensure smooth integration with the existing infrastructure and proper configuration of our ReviewBoard MCP server.
+
+---
+
 ## Support
 
 For issues with:
