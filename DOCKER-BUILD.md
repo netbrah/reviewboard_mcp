@@ -1,49 +1,78 @@
 # Docker Build Instructions
 
-## Important: Build Locally First
+## Two Approaches
 
-Due to npm issues in Docker builds, you must build the TypeScript locally before building the Docker image.
+You can build the Docker image using either approach:
 
-### Build Steps
+### Approach 1: Build Locally, Copy to Docker (Current)
+
+**Pros:** Faster Docker builds, no npm issues in container  
+**Cons:** Requires local build first
 
 ```bash
-# 1. Install dependencies (if not already done)
+# 1. Install dependencies and build locally
 npm install
-
-# 2. Build TypeScript locally
 npm run build
 
-# 3. Build Docker image (copies pre-built files and node_modules)
+# 2. Build Docker image (copies pre-built files)
 docker build -t reviewboard-mcp:latest .
 
-# 4. Test the image
+# 3. Test
 docker run -d --name reviewboard-mcp-test -p 3000:3000 reviewboard-mcp:latest
 curl http://localhost:3000/health
-
-# 5. Clean up
-docker stop reviewboard-mcp-test
-docker rm reviewboard-mcp-test
 ```
 
-### Why?
+### Approach 2: Build Inside Docker (Alternative)
 
-The Dockerfile now uses a simple approach:
-- Copies `build/` directory (must exist before Docker build)
-- Copies `node_modules/` directory (must exist before Docker build)
-- No npm install in Docker (avoids npm bugs)
+If you prefer building inside the container:
 
-This approach:
-- ✅ Faster builds (no npm install in Docker)
-- ✅ Reliable (no npm bugs)
-- ✅ Smaller final image (only production deps)
-- ❌ Requires local build first
+```dockerfile
+FROM node:20-slim
+WORKDIR /app
 
-### CI/CD
+# Copy package files
+COPY package*.json ./
 
-In GitHub Actions:
+# Install dependencies
+RUN npm ci
+
+# Copy source
+COPY tsconfig.json ./
+COPY src ./src
+
+# Build TypeScript
+RUN npm run build
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+CMD ["node", "build/index-http.js"]
+```
+
+Then just:
+```bash
+docker build -t reviewboard-mcp:latest .
+```
+
+**Note:** This approach may encounter npm issues in some environments.
+
+## Current Dockerfile
+
+The current Dockerfile uses Approach 1 (copy pre-built files) because:
+- ✅ More reliable (avoids npm bugs in Alpine/containers)
+- ✅ Faster builds (build happens once on host)
+- ✅ Works with CI/CD caching
+
+## CI/CD Pipeline
+
+The GitHub Actions workflow (`.github/workflows/ci-cd.yml`) automatically:
 1. `npm ci` - Install dependencies
-2. `npm run build` - Build TypeScript
+2. `npm run build` - Build TypeScript locally
 3. `docker build` - Build image with pre-built files
 4. `docker push` - Push to registry
 
-This is already configured in `.github/workflows/ci-cd.yml`.
+This ensures `build/` and `node_modules/` exist before Docker copies them.
