@@ -10,7 +10,8 @@ Natural language interface to ReviewBoard for AI assistants via the Model Contex
 - 🎯 **Native Copilot Integration** - All 17 tools available as Copilot commands
 - ⚙️ **Simple Configuration** - VS Code settings for token and URL
 - 💬 **Natural Language** - Ask questions conversationally in Copilot Chat
-- See [vscode-extension/README.md](./vscode-extension/README.md) for installation and usage!
+- 📦 **Ready to Install** - Pre-packaged `.vsix` file included
+- 📖 See [Installation Guide](./docs/VSCODE-EXTENSION-INSTALL.md) | [Quick Start](./docs/VSCODE-EXTENSION-QUICKSTART.md) | [README](./vscode-extension/README.md)
 
 **🆕 Enhanced Revision Diff Capabilities!** Now with comprehensive patch-level analysis:
 - 🔥 **Revision-to-Revision Patches** - See actual code changes between any consecutive revisions

@@ -4,7 +4,10 @@
   "description": "Exposes ReviewBoard API tools to GitHub Copilot Chat for natural language code review interactions",
   "version": "1.0.0",
   "publisher": "reviewboard",
-  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/netbrah/reviewboard_mcp.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
