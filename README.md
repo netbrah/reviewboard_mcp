@@ -6,6 +6,12 @@ Natural language interface to ReviewBoard for AI assistants via the Model Contex
 
 ## 🌟 What's New
 
+**🆕 VS Code Extension for GitHub Copilot!** Now you can use ReviewBoard tools directly in GitHub Copilot Chat:
+- 🎯 **Native Copilot Integration** - All 17 tools available as Copilot commands
+- ⚙️ **Simple Configuration** - VS Code settings for token and URL
+- 💬 **Natural Language** - Ask questions conversationally in Copilot Chat
+- See [vscode-extension/README.md](./vscode-extension/README.md) for installation and usage!
+
 **🆕 Enhanced Revision Diff Capabilities!** Now with comprehensive patch-level analysis:
 - 🔥 **Revision-to-Revision Patches** - See actual code changes between any consecutive revisions
 - 🔥 **File Evolution Tracking** - Track how specific files changed across all revisions with full patches
@@ -39,17 +45,24 @@ npm install
 npm run build
 ```
 
-## 🚀 Two Modes of Operation
+## 🚀 Three Modes of Operation
 
-This MCP server supports **two deployment modes**:
+This project supports **three deployment modes**:
 
-### 1. **stdio Mode** (Local Development)
+### 1. **VS Code Extension** (GitHub Copilot Integration) 🆕
+- Native GitHub Copilot Chat integration
+- All 17 ReviewBoard tools available as chat commands
+- Configure via VS Code settings (token + URL)
+- Perfect for developers using GitHub Copilot
+- See [vscode-extension/README.md](./vscode-extension/README.md)
+
+### 2. **stdio Mode** (Local Development)
 - Runs as a local process communicating via stdin/stdout
 - Perfect for local development with VS Code or Claude Desktop
 - One process per client
 - Configuration via environment variables or VS Code prompts
 
-### 2. **HTTP Streaming Mode** (Production Deployment)
+### 3. **HTTP Streaming Mode** (Production Deployment)
 - Runs as a web service with HTTP + Server-Sent Events (SSE)
 - Scalable deployment (Kubernetes, Docker, etc.)
 - Multiple concurrent clients
@@ -57,6 +70,7 @@ This MCP server supports **two deployment modes**:
 - Per-request authentication
 
 **Choose your mode based on use case:**
+- GitHub Copilot users → Use VS Code extension (`vscode-extension/`)
 - Local development → Use stdio mode (`npm start`)
 - Production/team deployment → Use HTTP streaming mode (`npm run start:http`)
 - Airlock testing → Use Docker + HTTP mode (see [AIRLOCK-TESTING.md](./docs/AIRLOCK-TESTING.md))
