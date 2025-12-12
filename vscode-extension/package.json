@@ -1,0 +1,159 @@
+{
+  "name": "reviewboard-copilot-tools",
+  "displayName": "ReviewBoard Tools for GitHub Copilot",
+  "description": "Exposes ReviewBoard API tools to GitHub Copilot Chat for natural language code review interactions",
+  "version": "1.0.0",
+  "publisher": "reviewboard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/netbrah/reviewboard_mcp.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "reviewboard",
+    "code-review",
+    "github-copilot",
+    "ai",
+    "chat"
+  ],
+  "activationEvents": [
+    "onLanguage:*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "ReviewBoard",
+      "properties": {
+        "reviewboard.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "ReviewBoard server URL (e.g., https://reviewboard.example.com)",
+          "order": 1
+        },
+        "reviewboard.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "ReviewBoard API token for authentication",
+          "order": 2
+        },
+        "reviewboard.username": {
+          "type": "string",
+          "default": "",
+          "description": "ReviewBoard username (optional, use if not using API token)",
+          "order": 3
+        },
+        "reviewboard.password": {
+          "type": "string",
+          "default": "",
+          "description": "ReviewBoard password (optional, use if not using API token)",
+          "order": 4
+        }
+      }
+    },
+    "chatParticipants": [
+      {
+        "id": "reviewboard",
+        "name": "reviewboard",
+        "description": "Ask questions about ReviewBoard code reviews",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "get_review_requests",
+            "description": "Get a list of review requests"
+          },
+          {
+            "name": "get_review_request",
+            "description": "Get details of a specific review request"
+          },
+          {
+            "name": "get_reviews",
+            "description": "Get reviews for a review request"
+          },
+          {
+            "name": "search",
+            "description": "Search ReviewBoard content"
+          },
+          {
+            "name": "get_full_diff_patch",
+            "description": "Get the complete unified diff patch"
+          },
+          {
+            "name": "get_diff_files",
+            "description": "See what files were changed"
+          },
+          {
+            "name": "get_comprehensive_comments_analysis",
+            "description": "Get complete comments analysis"
+          },
+          {
+            "name": "analyze_comment_resolution",
+            "description": "Analyze whether comments were addressed"
+          },
+          {
+            "name": "get_diff_revisions",
+            "description": "Get diff revisions with optional patches"
+          },
+          {
+            "name": "compare_revisions",
+            "description": "Compare two revisions"
+          },
+          {
+            "name": "get_file_revision_history",
+            "description": "Track file evolution across revisions"
+          },
+          {
+            "name": "get_file_at_revision",
+            "description": "Get file content at specific revision"
+          },
+          {
+            "name": "get_file_history",
+            "description": "Get file change history"
+          },
+          {
+            "name": "get_revision_summary",
+            "description": "Get summary of revision changes"
+          },
+          {
+            "name": "get_review_history",
+            "description": "Get complete review history"
+          },
+          {
+            "name": "get_repositories",
+            "description": "Get list of repositories"
+          },
+          {
+            "name": "get_users",
+            "description": "Get list of users"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "lint": "eslint src --ext ts"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "@types/xml2js": "^0.4.14",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/vsce": "^2.24.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.0.0"
+  }
+}

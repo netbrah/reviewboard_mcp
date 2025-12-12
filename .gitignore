@@ -50,7 +50,7 @@ yarn-error.log*
 *.temp
 reviewboard.xml
 
-# Summary documents (keep local)
+# Summary documents (keep local) - but keep VSCODE-EXTENSION-SUMMARY.md
 CLEANUP_SUMMARY.md
 PROJECT_STATUS.md
 REORGANIZATION_SUMMARY.md
